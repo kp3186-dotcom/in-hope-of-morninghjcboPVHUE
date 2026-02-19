@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>In Hope of Morning</title>
+
+<style>
+body {
+  margin: 0;
+  font-family: "Georgia", serif;
+  color: #fff;
+  text-align: center;
+  overflow-x: hidden;
+  background:
+    radial-gradient(circle at 30% 20%, rgba(255,170,170,0.25), transparent 40%),
+    radial-gradient(circle at 70% 80%, rgba(255,120,120,0.18), transparent 45%),
+    linear-gradient(to bottom, #0b141a, #120b16, #1a0f14);
+}
+
+h1 {
+  font-weight: normal;
+  font-size: 36px;
+  margin-top: 18px;
+  letter-spacing: 2px;
+  opacity: 0.95;
+}
+
+/* PHOTO */
+.image-wrapper {
+  display: flex;
+  justify-content: center;
+  margin: 12px 0 6px;
+}
+.image-wrapper img {
+  width: 260px;
+  max-width: 80%;
+  border-radius: 24px;
+  box-shadow:
+    0 0 34px rgba(255,200,200,.30),
+    0 0 70px rgba(255,120,120,.12);
+}
+
+#countdown {
+  font-size: 32px;
+  margin: 10px 0 6px;
+  line-height: 1.5;
+  letter-spacing: 0.5px;
+}
+
+#verse {
+  font-size: 15px;
+  font-style: italic;
+  opacity: 0.85;
+  line-height: 1.6;
+  max-width: 520px;
+  margin: 0 auto 14px;
+}
+#verse span { font-size: 13px; opacity: 0.75; }
+
+#hint {
+  font-size: 14px;
+  opacity: 0.85;
+  margin: 6px 0 0;
+}
+
+input, button, textarea {
+  padding: 12px;
+  font-size: 16px;
+  border-radius: 10px;
+  border: none;
+  margin: 6px;
+}
+
+button {
+  cursor: pointer;
+  background-color: rgba(255,255,255,0.9);
+}
+button:hover { background-color: white; }
+
+.section { margin-top: 20px; }
+
+#letter {
+  width: 80%;
+  max-width: 520px;
+  height: 120px;
+}
+
+#notes {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 18px;
+}
+
+.note {
+  position: relative;
+  background: rgba(255,248,214,0.95);
+  color: #4a2c2a;
+  width: 190px;
+  padding: 14px 38px 14px 14px;
+  border-radius: 12px;
+  box-shadow:
+    0 8px 20px rgba(0,0,0,0.25),
+    inset 0 0 10px rgba(255,255,255,0.4);
+  cursor: pointer;
+  font-size: 14px;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.note:hover {
+  transform: translateY(-4px) rotate(-1deg);
+  box-shadow: 0 12px 28px rgba(0,0,0,0.35);
+}
+.note em { font-style: italic; opacity: 0.85; }
+
+.delete-note {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(0,0,0,0.12);
+  color: #4a2c2a;
+  font-size: 16px;
+  line-height: 24px;
+  padding: 0;
+  cursor: pointer;
+}
+.delete-note:hover { background: rgba(0,0,0,0.22); }
+
+/* sparkles */
+.sparkle {
+  position: fixed;
+  width: 2px;
+  height: 2px;
+  background: rgba(255,200,200,0.9);
+  border-radius: 50%;
+  animation: twinkle 4s infinite alternate;
+}
+@keyframes twinkle { from {opacity:.25} to {opacity:1} }
+</style>
+</head>
+
+<body>
+
+<h1>in hope of morning</h1>
+
+<div class="image-wrapper">
+  <img src="us.jpg" alt="Us">
+</div>
+
+<div id="countdown">Select your next date 💫</div>
+
+<div id="verse">
+  “Be still before the Lord and wait patiently for Him.”
+  <br><span>— Psalm 37:7</span>
+</div>
+
+<div id="hint"></div>
+
+<div class="section">
+  <input type="datetime-local" id="dateInput">
+  <button onclick="addVisit()">Add Visit ✨</button>
+  <button onclick="resetCountdown()">Reset Countdown</button>
+</div>
+
+<div class="section">
+  <h3>Love Letters 💌</h3>
+  <textarea id="letter" placeholder="leave a letter..."></textarea><br>
+  <button onclick="saveLetter()">Save Letter</button>
+  <div id="notes"></div>
+</div>
+
+<script>
+/* ---------------- VISITS / COUNTDOWN (RESET-SAFE) ---------------- */
+const KEY_DATES = "dates";
+let dates = loadDates();              // array of Date objects
+
+function loadDates() {
+  // Hard reset bad data: parse, convert, filter, sort
+  const raw = JSON.parse(localStorage.getItem(KEY_DATES) || "[]");
+  const parsed = raw.map(x => new Date(x)).filter(d => !isNaN(d));
+  parsed.sort((a,b)=>a-b);
+  return parsed;
+}
+
+function saveDates() {
+  // store as ISO strings (stable)
+  localStorage.setItem(KEY_DATES, JSON.stringify(dates.map(d => d.toISOString())));
+}
+
+function getNextUpcoming() {
+  const now = new Date();
+  const upcoming = dates.filter(d => d > now).sort((a,b)=>a-b);
+  return upcoming.length ? upcoming[0] : null;
+}
+
+function formatNextDate(d) {
+  return d.toLocaleString(undefined, {
+    weekday: "short", month: "long", day: "numeric",
+    hour: "numeric", minute: "2-digit"
+  });
+}
+
+function addVisit() {
+  const input = document.getElementById("dateInput");
+  const v = input.value;
+  if (!v) return;
+
+  const date = new Date(v);
+  if (isNaN(date)) {
+    setHint("That date didn’t read correctly — try again.");
+    return;
+  }
+
+  // If they pick something in the past, tell them (this is a common “countdown not working” cause)
+  if (date <= new Date()) {
+    setHint("Pick a future date/time 💫");
+    return;
+  }
+
+  dates.push(date);
+  dates.sort((a,b)=>a-b);
+  saveDates();
+
+  input.value = "";
+  setHint("Saved ✨");
+  updateCountdown(true); // force immediate refresh
+}
+
+function resetCountdown() {
+  localStorage.removeItem(KEY_DATES);
+  dates = [];
+  setHint("Reset. Add a new visit 💫");
+  updateCountdown(true);
+}
+
+function setHint(msg) {
+  document.getElementById("hint").textContent = msg || "";
+}
+
+function updateCountdown(force) {
+  const target = getNextUpcoming();
+
+  if (!target) {
+    document.getElementById("countdown").innerHTML = "Select your next date 💫";
+    return;
+  }
+
+  const diff = target - new Date();
+
+  // If time passed and it’s now in the past, clean and try again
+  if (diff <= 0) {
+    dates = dates.filter(d => d > new Date());
+    saveDates();
+    return updateCountdown(true);
+  }
+
+  const days = Math.floor(diff / (1000*60*60*24));
+  const hours = Math.floor((diff / (1000*60*60)) % 24);
+  const seconds = Math.floor((diff / 1000) % 60);
+
+  document.getElementById("countdown").innerHTML =
+    `${days} days · ${hours} hours · ${seconds} seconds<br>
+     <span style="opacity:0.85">until I see your smile again ✨</span>`;
+
+  // optional subtle context line (only updates when forced / after add/reset)
+  if (force) setHint(`Next: ${formatNextDate(target)}`);
+}
+
+setInterval(() => updateCountdown(false), 1000);
+updateCountdown(true);
+
+/* ---------------- LETTERS (DATE-STAMPED + DELETE) ---------------- */
+let letters = JSON.parse(localStorage.getItem("letters")) || [];
+const notesContainer = document.getElementById("notes");
+
+function persistLetters(){ localStorage.setItem("letters", JSON.stringify(letters)); }
+
+function saveLetter() {
+  const t = document.getElementById("letter");
+  const text = t.value.trim();
+  if (!text) return;
+
+  const now = new Date();
+  letters.push({
+    text,
+    date: now.toLocaleDateString(undefined,{month:"long",day:"numeric",year:"numeric"}),
+    time: now.toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"})
+  });
+
+  persistLetters();
+  t.value = "";
+  renderNotes();
+}
+
+function deleteLetter(i){
+  letters.splice(i,1);
+  persistLetters();
+  renderNotes();
+}
+
+function renderNotes() {
+  notesContainer.innerHTML = "";
+  letters.forEach((entry,i)=>{
+    const note=document.createElement("div");
+    note.className="note";
+
+    const del=document.createElement("button");
+    del.className="delete-note";
+    del.textContent="×";
+    del.onclick=(e)=>{e.stopPropagation(); deleteLetter(i);};
+
+    let open=false;
+    const content=document.createElement("div");
+    content.innerHTML="<em>a letter for you 🤍</em>";
+
+    note.onclick=()=>{
+      open=!open;
+      content.innerHTML=open
+        ? `<div style="font-size:12px; opacity:.7; margin-bottom:6px;">${entry.date} · ${entry.time}</div>
+           <div>${entry.text.replace(/\n/g,"<br>")}</div>`
+        : "<em>a letter for you 🤍</em>";
+    };
+
+    note.appendChild(del);
+    note.appendChild(content);
+    notesContainer.appendChild(note);
+  });
+}
+renderNotes();
+
+/* ---------------- SPARKLES ---------------- */
+for (let i=0;i<160;i++){
+  const s=document.createElement("div");
+  s.className="sparkle";
+  s.style.top=Math.random()*window.innerHeight+"px";
+  s.style.left=Math.random()*window.innerWidth+"px";
+  s.style.animationDuration=(Math.random()*4+2)+"s";
+  document.body.appendChild(s);
+}
+</script>
+
+</body>
+</html>
